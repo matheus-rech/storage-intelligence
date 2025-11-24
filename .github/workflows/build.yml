@@ -1,0 +1,43 @@
+name: Build Electron App
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        run: npm run build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Storage-Intelligence-macOS
+          path: dist/*.dmg
+          retention-days: 30
+
+      - name: Upload app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Storage-Intelligence-app
+          path: dist/mac-arm64/*.app
+          retention-days: 30
