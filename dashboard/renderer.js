@@ -4,8 +4,16 @@ class StorageIntelligenceApp {
         this.currentPage = 'dashboard';
         this.currentAnalysis = null;
         this.isAnalyzing = false;
-        
+
         this.init();
+    }
+
+    // HTML escape function to prevent XSS
+    escapeHtml(text) {
+        if (text == null) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     init() {
@@ -37,7 +45,7 @@ class StorageIntelligenceApp {
             });
 
             window.storageAPI.onAnalysisProgress((progress) => {
-                this.onAnalysisProgress(progress);
+                this.updateProgress(progress);
             });
 
             window.storageAPI.onAnalysisComplete((analysis) => {
@@ -123,37 +131,119 @@ class StorageIntelligenceApp {
         }
     }
 
+    showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 10000;
+            animation: slideIn 0.3s ease;
+            max-width: 300px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        `;
+
+        if (type === 'success') {
+            notification.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+        } else if (type === 'error') {
+            notification.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+        } else {
+            notification.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        }
+
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    updateProgress(progress) {
+        const progressContainer = document.getElementById('analysisProgress');
+        const progressFill = document.getElementById('progressFill');
+        const progressStatus = document.getElementById('progressStatus');
+        const progressTime = document.getElementById('progressTime');
+
+        if (progressFill) {
+            progressFill.style.width = progress.percent + '%';
+        }
+        if (progressStatus) {
+            progressStatus.textContent = progress.message || 'Scanning...';
+        }
+        if (progressTime) {
+            const remaining = Math.max(0, 5 - progress.step) * 5;
+            progressTime.textContent = remaining > 0 ? `~${remaining}s remaining` : 'Almost done...';
+        }
+    }
+
     async runAnalysis() {
         if (this.isAnalyzing) return;
 
         this.isAnalyzing = true;
         const btn = document.getElementById('runAnalysisBtn');
-        
+        const progressContainer = document.getElementById('analysisProgress');
+
+        // Show progress bar
+        if (progressContainer) {
+            progressContainer.style.display = 'block';
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('progressStatus').textContent = 'Starting scan...';
+            document.getElementById('progressTime').textContent = 'Estimated: ~25s';
+        }
+
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span><span>Analyzing...</span>';
+            btn.innerHTML = '<span class="spinner"></span><span>Scanning...</span>';
+        }
+
+        // Show scanning message in dashboard
+        const statsGrid = document.getElementById('statsGrid');
+        if (statsGrid) {
+            document.getElementById('totalStorage').textContent = '...';
+            document.getElementById('reclaimableSpace').textContent = '...';
+            document.getElementById('cachesFound').textContent = '...';
+            document.getElementById('devBloat').textContent = '...';
         }
 
         try {
             if (window.storageAPI) {
-                const result = await window.storageAPI.runAnalysis({});
+                const fullSystemScan = document.getElementById('fullSystemScan')?.checked || false;
+                const result = await window.storageAPI.runAnalysis({ fullSystemScan });
                 if (result.success) {
                     this.currentAnalysis = result.analysis;
                     this.updateUI();
+                    const scanTime = result.analysis.scan_duration || '';
+                    this.showNotification(`Analysis complete! ${scanTime}`, 'success');
+                } else {
+                    this.showNotification('Analysis failed: ' + (result.error || 'Unknown error'), 'error');
                 }
             } else {
                 // Simulate for testing
                 await this.simulateAnalysis();
+                this.showNotification('Analysis complete!', 'success');
             }
         } catch (error) {
             console.error('Analysis error:', error);
-            alert('Analysis failed: ' + error.message);
+            this.showNotification('Analysis failed: ' + error.message, 'error');
         } finally {
             this.isAnalyzing = false;
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = '<span>🚀</span><span>Run Analysis</span>';
             }
+            // Hide progress bar after a short delay
+            setTimeout(() => {
+                if (progressContainer) {
+                    progressContainer.style.display = 'none';
+                }
+            }, 500);
         }
     }
 
@@ -299,21 +389,21 @@ class StorageIntelligenceApp {
 
     createRecommendationCard(rec) {
         return `
-            <div class="recommendation-card ${rec.priority}">
+            <div class="recommendation-card ${this.escapeHtml(rec.priority)}">
                 <div class="rec-header">
-                    <div class="rec-title">${rec.title}</div>
-                    <div class="rec-badge ${rec.priority}">${rec.priority}</div>
+                    <div class="rec-title">${this.escapeHtml(rec.title)}</div>
+                    <div class="rec-badge ${this.escapeHtml(rec.priority)}">${this.escapeHtml(rec.priority)}</div>
                 </div>
-                <div class="rec-description">${rec.description}</div>
+                <div class="rec-description">${this.escapeHtml(rec.description)}</div>
                 <div class="rec-meta">
-                    <span>💾 ${rec.space_savings}</span>
-                    <span>⚠️ Risk: ${rec.risk}</span>
+                    <span>💾 ${this.escapeHtml(rec.space_savings)}</span>
+                    <span>⚠️ Risk: ${this.escapeHtml(rec.risk)}</span>
                 </div>
                 <div class="rec-actions">
-                    <button class="btn btn-primary btn-sm" onclick="app.executeRecommendation('${rec.category}')">
+                    <button class="btn btn-primary btn-sm" onclick="app.executeRecommendation('${this.escapeHtml(rec.category)}')">
                         Execute
                     </button>
-                    <button class="btn btn-secondary btn-sm" onclick="app.showDetails('${rec.category}')">
+                    <button class="btn btn-secondary btn-sm" onclick="app.showDetails('${this.escapeHtml(rec.category)}')">
                         Details
                     </button>
                 </div>
@@ -597,33 +687,33 @@ class StorageIntelligenceApp {
 
     async executeRecommendation(category) {
         if (!confirm(`Execute ${category} recommendation?`)) return;
-        
+
         try {
             if (window.storageAPI) {
                 const result = await window.storageAPI.executeAction(category, {});
-                alert('Action completed: ' + (result.message || 'Success'));
+                this.showNotification(result.message || 'Action completed!', 'success');
                 await this.runAnalysis();
             } else {
-                alert(`Would execute: ${category}`);
+                this.showNotification(`Would execute: ${category}`, 'info');
             }
         } catch (error) {
-            alert('Error: ' + error.message);
+            this.showNotification('Error: ' + error.message, 'error');
         }
     }
 
     async executeQuickAction(action) {
         if (!confirm(`Execute ${action}?`)) return;
-        
+
         try {
             if (window.storageAPI) {
                 const result = await window.storageAPI.executeAction(action, {});
-                alert('Action completed: ' + (result.message || 'Success'));
+                this.showNotification(result.message || 'Action completed!', 'success');
                 await this.runAnalysis();
             } else {
-                alert(`Would execute: ${action}`);
+                this.showNotification(`Would execute: ${action}`, 'info');
             }
         } catch (error) {
-            alert('Error: ' + error.message);
+            this.showNotification('Error: ' + error.message, 'error');
         }
     }
 
