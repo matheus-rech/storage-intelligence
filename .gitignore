@@ -6,7 +6,6 @@ python/__pycache__/
 
 # Build outputs
 dist/
-build/
 *.app
 *.dmg
 *.zip
