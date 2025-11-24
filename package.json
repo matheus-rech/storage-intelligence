@@ -1,0 +1,96 @@
+{
+  "name": "storage-intelligence",
+  "version": "1.0.0",
+  "description": "AI-Powered Storage Optimization for macOS",
+  "main": "main.js",
+  "author": "Matheus Rech <matheus@example.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/matheus-rech/storage-intelligence.git"
+  },
+  "bugs": {
+    "url": "https://github.com/matheus-rech/storage-intelligence/issues"
+  },
+  "homepage": "https://github.com/matheus-rech/storage-intelligence#readme",
+  "keywords": [
+    "storage",
+    "optimization",
+    "macos",
+    "cleanup",
+    "ai",
+    "electron",
+    "file-management",
+    "disk-space"
+  ],
+  "scripts": {
+    "start": "electron .",
+    "dev": "NODE_ENV=development electron .",
+    "build": "electron-builder",
+    "build-mac": "electron-builder --mac",
+    "build-win": "electron-builder --win",
+    "build-linux": "electron-builder --linux",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --mac --publish never",
+    "publish": "electron-builder --mac --publish always",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.storageintelligence.app",
+    "productName": "Storage Intelligence",
+    "copyright": "Copyright © 2024 Matheus Rech",
+    "files": [
+      "main.js",
+      "preload.js",
+      "dashboard/**/*",
+      "python/**/*"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "mac": {
+      "category": "public.app-category.utilities",
+      "icon": "build/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 380
+      }
+    }
+  }
+}
